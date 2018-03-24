@@ -5,18 +5,18 @@
     
    "productName": {
       "Type": "String",
-      "Default": "",
-      "Description": "Name of the product for which you intend to use the pipeline. Note - This is just a default value, you get to override this later when you trigger automation workflow."
+      "Default": "ProductName-ProductVersion",
+      "Description": "ProductName-ProductVersion combination of the product for which you intend to use the pipeline. You get to override this later when you trigger automation workflow. "
     },
     "productOSAndVersion": {
       "Type": "String",
-      "Default": "",
-      "Description": "Operating system and version number of product.Note - This is just a default value, you get to override this later when you trigger automation workflow."
+      "Default": "OperatingSystemName-OperatingSystemVersion",
+      "Description": "Operating system name and OS version. You get to override this later when you trigger automation workflow."
     },
      "buildVersion": {
       "Type": "String",
       "Default": "1",
-      "Description": "Version corresponding to your product.Note - This is just a default value, you get to override this later when you trigger automation workflow."
+      "Description": "Build-Version corresponding to your product. Note - This is just a default value, you get to override this later when you trigger automation workflow."
     },
     "cidrVPC" : {
       "Description" : "An available CIDR block for creating a new VPC. The size of the VPC should be big enough to hold instances of all your golden AMIs at a time",
@@ -48,7 +48,7 @@
     "ApproverUserIAMARN": {
       "Type": "String",
       "Default": "",
-      "Description": "IAM ARN of the Golden AMI approver. The approver must have AmazonSSMAutomationApproverAccess policy associated."
+      "Description": "IAM ARN of the Golden AMI approver. The approver must have AmazonSSMAutomationApproverAccess policy associated with it's IAM Profile ."
   },
   "EmailID": {
       "Type": "String",
@@ -61,7 +61,7 @@
     {
          "Type": "String",
       "Default": "t2.large",
-      "Description": "This is the InstanceType you want to use for launching continuous inspection of all your golden AMIs."
+      "Description": "Specify the the InstanceType compatible with all your golden AMIs. This InstanceType will be used for launching continuous vulnerability assessment of golden AMIs."
     },
   
     "continuousInspectionFrequency": {
@@ -77,7 +77,7 @@
        "roleName":{
          "Type":"String",
          "Default":"goldenAMICrossAccountRole",
-      "Description": "Cross account role suffix for managing Golden AMI metadata Parameters in child account(s). This role needs to exist in each account specified in MetadataJSON parameter."
+         "Description": "Cross account role suffix for managing Golden AMI metadata Parameters in child account(s). This role needs to exist in each account specified in MetadataJSON parameter."
       }
     },
     "Resources": {
@@ -601,13 +601,6 @@
                                 "\n","            return 'Done'",
                                 "\n","    mappingJSON = json.loads(amiIDRegionMapping)",
                                 "\n","    for region,amiID in mappingJSON.items():",
-                                "\n","        ec2 = boto3.client('ec2',region)",
-                                "\n","        ec2.deregister_image(ImageId=amiID)", 
-                                "\n","        time.sleep(5)",
-                                "\n","        snaps = ec2.describe_snapshots()",
-                                "\n","        for snap in snaps['Snapshots']:", 
-                                "\n","            if amiID in snap['Description']:", 
-                                "\n","                ec2.delete_snapshot(SnapshotId=snap['SnapshotId'])",
                                 "\n","        sc = boto3.client('servicecatalog',region)",
                                 "\n","        products = sc.search_products_as_admin(ProductSource='ACCOUNT')",
                                 "\n","        for product in products['ProductViewDetails']:",
@@ -621,6 +614,13 @@
                                 "\n","                    for artifact in provisioningArtifacts:",
                                 "\n","                        if artifact['Name'] == version:",
                                 "\n","                            sc.delete_provisioning_artifact(ProductId=productID,ProvisioningArtifactId=artifact['Id'])",
+                                "\n","        ec2 = boto3.client('ec2',region)",
+                                "\n","        ec2.deregister_image(ImageId=amiID)", 
+                                "\n","        time.sleep(5)",
+                                "\n","        snaps = ec2.describe_snapshots()",
+                                "\n","        for snap in snaps['Snapshots']:", 
+                                "\n","            if amiID in snap['Description']:", 
+                                "\n","                ec2.delete_snapshot(SnapshotId=snap['SnapshotId'])",
                                 "\n","        ssm = boto3.client('ssm',region)",
                                 "\n","        ssm.delete_parameters(Names=[prefix])", 
                                 "\n","        temp =  ssm.get_parameter(Name=masterAmis)['Parameter']['Value']",
@@ -914,7 +914,7 @@
                                 "    if len(existingTemplates['assessmentTemplateArns'])==0:",
                                 "        resGroup = inspector.create_resource_group(resourceGroupTags=[{'key': 'Type','value': amiId+'-'+productOS+'/'+productName+'/'+productVersion}])",
                                 "        target = inspector.create_assessment_target(assessmentTargetName=fullName,resourceGroupArn=resGroup['resourceGroupArn'])",
-                                "        template = inspector.create_assessment_template(assessmentTargetArn=target['assessmentTargetArn'],assessmentTemplateName=amiId+'-'+productOS+'/'+productName+'/'+productVersion, durationInSeconds=900,rulesPackageArns=rules['rulesPackageArns'])",
+                                "        template = inspector.create_assessment_template(assessmentTargetArn=target['assessmentTargetArn'],assessmentTemplateName=amiId+'/'+productOS+'/'+productName+'/'+productVersion, durationInSeconds=900,rulesPackageArns=rules['rulesPackageArns'])",
                                 "        assessmentTemplateArn=template['assessmentTemplateArn']",
                                 "        response = inspector.subscribe_to_event(event='ASSESSMENT_RUN_COMPLETED',resourceArn=template['assessmentTemplateArn'],topicArn=topicArn)",
                                 "        print(\"Template Created:\"+template['assessmentTemplateArn'])",
@@ -1044,7 +1044,7 @@
                                 "    existingTemplates = inspector.describe_assessment_templates( assessmentTemplateArns=[template])",
                                 "    print( existingTemplates['assessmentTemplates'][0]['name'])",
                                 "    amiIdOriginal = existingTemplates['assessmentTemplates'][0]['name'];",
-                                "    index=amiIdOriginal.rfind('-', 0, amiIdOriginal.rfind('/'))",
+                                "    index=int(amiIdOriginal.find('/'))",
                                 "    suffix= amiIdOriginal[index+1:]",
                                 "    ", 
                                 "    ssm = boto3.client('ssm',region) ",
@@ -1340,7 +1340,7 @@
             "Properties": {
                 "DocumentType": "Automation",
                 "Content": {
-                    "description": "Builds a Golden AMI and scans with Amazon Inspector ",
+                    "description": "This automation document triggers Golden AMI creation workflow.",
                     "schemaVersion": "0.3",
                     "assumeRole": {
                         "Fn::GetAtt": [
@@ -1351,27 +1351,27 @@
                     "parameters": {
                         "sourceAMIid": {
                             "type": "String",
-                            "description": "Base AMI to be used for generating your golden AMI",
+                            "description": "Source/Base AMI to be used for generating your golden AMI",
                             "default": ""
                         },
                       
                         "productName": {
                             "type": "String",
-                            "description": "Name of the product ",
+                            "description": "The syntax of this parameter is ProductName-ProductVersion.",
                             "default": {
                                 "Ref": "productName"
                             }
                         },
                          "productOSAndVersion": {
                             "type": "String",
-                            "description": "Operating System of the product along with it's version",
+                            "description": "The syntax of this parameter is OSName-OSVersion",
                             "default": {
                                 "Ref": "productOSAndVersion"
                             }
                         },
                           "AMIVersion": {
                             "type": "String",
-                            "description": "Build version number of the product.",
+                            "description": "Golden AMI Build version number to be created.",
                             "default": {
                                 "Ref": "buildVersion"
                             }
@@ -1382,14 +1382,14 @@
                             "default":{
                                 "Ref": "subnetPrivate"
                             },
-                            "description": "Subnet to launch instances in."
+                            "description": "Subnet in which instances will be launched."
                         },
                         "securityGroupId": {
                             "type": "String",
                             "default":{
                                 "Ref": "secGroup"
                             },
-                            "description": "Security Group to attach to the instance. By Default a security group without any inbound access is attached"
+                            "description": "Security Group that will be attached to the instance. By Default a security group without any inbound access is attached"
                         },
                         "instanceType": {
                             "type": "String",
@@ -1400,7 +1400,7 @@
                         },
                         "targetAMIname": {
                             "type": "String",
-                            "description": "Name for the golden AMI",
+                            "description": "Name for the golden AMI to be created",
                             "default": "{{productName}}-{{productOSAndVersion}}-{{AMIVersion}}"
                         }, 
                         "ApproverUserIAMARN": {
@@ -1412,21 +1412,21 @@
                         },
                         "ApproverNotificationArn": {
                             "type": "String",
-                            "description": "IAM ARN on which a notification would be published once Golden AMI is ready.",
+                            "description": "SNS Topic ARN on which a notification would be published once the golden AMI candidate is ready for validation.",
                             "default": {
                                 "Ref": "ApproverNotification"
                             }
                         },
                         "ManagedInstanceProfile": {
                             "type": "String",
-                            "description": "Instance Profile",
+                            "description": "Instance Profile. Do not change the default value.",
                             "default": {
                                 "Ref": "ManagedInstanceProfile"
                             }
                         },
                          "SSMInstallationUserData": {
                             "type": "String",
-                            "description": "SSM Installation user-data, create and provide a Base64 encoded user-data script for installation. Ensure that the script automatically starts the ssm agent on startup.",
+                            "description": "Base64 encoded SSM installation user-data.",
                             "default": "IyEvYmluL2Jhc2gNCg0KZnVuY3Rpb24gZ2V0X2NvbnRlbnRzKCkgew0KICAgIGlmIFsgLXggIiQod2hpY2ggY3VybCkiIF07IHRoZW4NCiAgICAgICAgY3VybCAtcyAtZiAiJDEiDQogICAgZWxpZiBbIC14ICIkKHdoaWNoIHdnZXQpIiBdOyB0aGVuDQogICAgICAgIHdnZXQgIiQxIiAtTyAtDQogICAgZWxzZQ0KICAgICAgICBkaWUgIk5vIGRvd25sb2FkIHV0aWxpdHkgKGN1cmwsIHdnZXQpIg0KICAgIGZpDQp9DQoNCnJlYWRvbmx5IElERU5USVRZX1VSTD0iaHR0cDovLzE2OS4yNTQuMTY5LjI1NC8yMDE2LTA2LTMwL2R5bmFtaWMvaW5zdGFuY2UtaWRlbnRpdHkvZG9jdW1lbnQvIg0KcmVhZG9ubHkgVFJVRV9SRUdJT049JChnZXRfY29udGVudHMgIiRJREVOVElUWV9VUkwiIHwgYXdrIC1GXCIgJy9yZWdpb24vIHsgcHJpbnQgJDQgfScpDQpyZWFkb25seSBERUZBVUxUX1JFR0lPTj0idXMtZWFzdC0xIg0KcmVhZG9ubHkgUkVHSU9OPSIke1RSVUVfUkVHSU9OOi0kREVGQVVMVF9SRUdJT059Ig0KDQpyZWFkb25seSBTQ1JJUFRfTkFNRT0iYXdzLWluc3RhbGwtc3NtLWFnZW50Ig0KIFNDUklQVF9VUkw9Imh0dHBzOi8vYXdzLXNzbS1kb3dubG9hZHMtJFJFR0lPTi5zMy5hbWF6b25hd3MuY29tL3NjcmlwdHMvJFNDUklQVF9OQU1FIg0KDQppZiBbICIkUkVHSU9OIiA9ICJjbi1ub3J0aC0xIiBdOyB0aGVuDQogIFNDUklQVF9VUkw9Imh0dHBzOi8vYXdzLXNzbS1kb3dubG9hZHMtJFJFR0lPTi5zMy5jbi1ub3J0aC0xLmFtYXpvbmF3cy5jb20uY24vc2NyaXB0cy8kU0NSSVBUX05BTUUiDQpmaQ0KDQppZiBbICIkUkVHSU9OIiA9ICJ1cy1nb3Ytd2VzdC0xIiBdOyB0aGVuDQogIFNDUklQVF9VUkw9Imh0dHBzOi8vYXdzLXNzbS1kb3dubG9hZHMtJFJFR0lPTi5zMy11cy1nb3Ytd2VzdC0xLmFtYXpvbmF3cy5jb20vc2NyaXB0cy8kU0NSSVBUX05BTUUiDQpmaQ0KDQpjZCAvdG1wDQpGSUxFX1NJWkU9MA0KTUFYX1JFVFJZX0NPVU5UPTMNClJFVFJZX0NPVU5UPTANCg0Kd2hpbGUgWyAkUkVUUllfQ09VTlQgLWx0ICRNQVhfUkVUUllfQ09VTlQgXSA7IGRvDQogIGVjaG8gQVdTLVVwZGF0ZUxpbnV4QW1pOiBEb3dubG9hZGluZyBzY3JpcHQgZnJvbSAkU0NSSVBUX1VSTA0KICBnZXRfY29udGVudHMgIiRTQ1JJUFRfVVJMIiA+ICIkU0NSSVBUX05BTUUiDQogIEZJTEVfU0laRT0kKGR1IC1rIC90bXAvJFNDUklQVF9OQU1FIHwgY3V0IC1mMSkNCiAgZWNobyBBV1MtVXBkYXRlTGludXhBbWk6IEZpbmlzaGVkIGRvd25sb2FkaW5nIHNjcmlwdCwgc2l6ZTogJEZJTEVfU0laRQ0KICBpZiBbICRGSUxFX1NJWkUgLWd0IDAgXTsgdGhlbg0KICAgIGJyZWFrDQogIGVsc2UNCiAgICBpZiBbWyAkUkVUUllfQ09VTlQgLWx0IE1BWF9SRVRSWV9DT1VOVCBdXTsgdGhlbg0KICAgICAgUkVUUllfQ09VTlQ9JCgoUkVUUllfQ09VTlQrMSkpOw0KICAgICAgZWNobyBBV1MtVXBkYXRlTGludXhBbWk6IEZpbGVTaXplIGlzIDAsIHJldHJ5Q291bnQ6ICRSRVRSWV9DT1VOVA0KICAgIGZpDQogIGZpIA0KZG9uZQ0KDQppZiBbICRGSUxFX1NJWkUgLWd0IDAgXTsgdGhlbg0KICBjaG1vZCAreCAiJFNDUklQVF9OQU1FIg0KICBlY2hvIEFXUy1VcGRhdGVMaW51eEFtaTogUnVubmluZyBVcGRhdGVTU01BZ2VudCBzY3JpcHQgbm93IC4uLi4NCiAgLi8iJFNDUklQVF9OQU1FIiAtLXJlZ2lvbiAiJFJFR0lPTiINCmVsc2UNCiAgZWNobyBBV1MtVXBkYXRlTGludXhBbWk6IFVuYWJsZSB0byBkb3dubG9hZCBzY3JpcHQsIHF1aXR0aW5nIC4uLi4NCmZp"
                         },
                         "PreUpdateScript": {
@@ -1682,7 +1682,7 @@
                             "onFailure": "Abort",
                             "inputs": {
                                 "NotificationArn": "{{ ApproverNotificationArn }}",
-                                "Message": "Please check contents of SSM Parameter : /GoldenAMI/{{productOSAndVersion}}/{{productName}}/{{AMIVersion}}/NumCVEs , and confirm if the build is approved or not.",
+                                "Message": "Please check contents of SSM Parameter : /GoldenAMI/{{productOSAndVersion}}/{{productName}}/{{AMIVersion}}/NumCVEs and approve/deny the build.",
                                 "MinRequiredApprovals": 1,
                                 "Approvers": [
                                     "{{ ApproverUserIAMARN }}"
@@ -1996,7 +1996,7 @@
          "Properties":{
             "DocumentType":"Automation",
             "Content":{
-               "description":"CopyAMI and Share it with others",
+               "description":"This automation document triggers a workflow to copy and share the golden AMI with other regions/accounts",
                "schemaVersion":"0.3",
                "assumeRole":{
                         "Fn::GetAtt": [
@@ -2023,17 +2023,17 @@
                   },
                   "productName":{
                      "type":"String",
-                     "description":"This parameter contains name of the bucket",
+                     "description":"The syntax of this parameter is ProductName-ProductVersion",
                      "default":{ "Ref": "productName" }
                   },
                   "productOSAndVersion":{
                      "type":"String",
-                     "description":"This parameter contains name of the bucket",
+                     "description":"The syntax of this parameter is OSName-OSVersion",
                      "default":{ "Ref": "productOSAndVersion" }
                   },
                   "buildVersion":{
                      "type":"String",
-                     "description":"This parameter contains name of the bucket",
+                     "description":"This is the build number of the golden AMI to be distributed",
                      "default":{ "Ref": "buildVersion" }
                   },
                   "MetadataParamName":{
@@ -2099,7 +2099,7 @@
          "Properties":{
             "DocumentType":"Automation",
             "Content":{
-               "description":"Decomission an old AMI version",
+               "description":"This automation document triggers golden AMI build decommissioning workflow",
                "schemaVersion":"0.3",
                "assumeRole":{
                         "Fn::GetAtt": [
@@ -2111,32 +2111,32 @@
                 
                     "bucketName":{
                      "type":"String",
-                     "description":"This parameter contains name of the bucket in which template file is stored",
+                     "description":"This parameter contains name of the bucket in which CFT template file is stored",
                      "default":{"Ref":"GoldenAMIConfigBucket"}
                   },
                   "templateFileName":{
                      "type":"String",
-                     "description":"The placeholder template file  ",
+                     "description":"The CFT template file-name used for creating the Service Catalog product",
                      "default":"simpleEC2-SSMParamInput.json"
                   },
                   "productName":{
                      "type":"String",
-                     "description":"The name of the product ",
+                     "description":"The syntax of this parameter is ProductName-ProductVersion",
                      "default":{ "Ref": "productName" }
                   },
                   "productOSAndVersion":{
                      "type":"String",
-                     "description":"The OS of the product",
+                     "description":"The syntax of this parameter is OSName-OSVersion",
                      "default":{ "Ref": "productOSAndVersion" }
                   },
                   "buildVersion":{
                      "type":"String",
-                     "description":"This version to be decommissioned",
+                     "description":"Golden AMI build number to be decommissioned.",
                      "default":{ "Ref": "buildVersion" }
                   },
                   "MetadataParamName":{
                      "type":"String",
-                     "description":"This parameter points to an SSM parameter used for storing some process specific metadata. Kindly Do not change the default value.",
+                     "description":"This parameter points to an SSM parameter used for storing some process specific metadata. Do not change the default value.",
                      "default": "/GoldenAMI/{{productOSAndVersion}}/{{productName}}/{{buildVersion}}/temp"
                   }
                },
@@ -2302,7 +2302,7 @@
          "Properties":{
             "DocumentType":"Automation",
             "Content":{
-               "description":"Execute Continuous inspection of all golden AMIs",
+               "description":"This automation document is triggered as part of the continuous vulnerability assessment on all active golden AMIs.",
                "schemaVersion":"0.3",
                "assumeRole":{
                         "Fn::GetAtt": [
@@ -2313,7 +2313,7 @@
                      "parameters":{
                     "instanceIDs":{
                      "type":"String",
-                     "description":"This parameter contains listof instanceIDS"
+                     "description":"This parameter contains list of instance-ids on which continuous vulnerability assessment is  performed."
                   }
                   },
                  
@@ -2357,8 +2357,7 @@
 
     "ContinuousAssessmentTarget": {
       "Type": "AWS::Inspector::AssessmentTarget",
-      "Properties": {
-        "AssessmentTargetName" : "ContinuousAssessmentTarget",
+      "Properties": { 
         "ResourceGroupArn" : {"Ref":"ContinuousAssessmentResourceGroup"}
       }
     },

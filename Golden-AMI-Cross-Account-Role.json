@@ -8,7 +8,9 @@
     },
     "parentAWSAccountID": {
       "Type": "String",
-      "Default": ""
+      "Default": "",
+            "AllowedPattern": "(\\d{12})",
+
     }
   },
   "Resources": {
