@@ -100,7 +100,7 @@
         "            if (error) { callback(error, null);}",
         "            else if (data.FailedEvaluations.length > 0) {callback(JSON.stringify(data), null);}",
         "            else {callback(null, data);}",
-        "        });});}});};",
+        "        });});}});};"
       ]]}
     },
     "Handler": "index.handler",
@@ -175,7 +175,7 @@
       "Owner": "CUSTOM_LAMBDA",
       "SourceDetails": [{
           "EventSource": "aws.config",
-          "MessageType": "ConfigurationItemChangeNotification", 
+          "MessageType": "ConfigurationItemChangeNotification"
       },
       {
           "EventSource": "aws.config",
@@ -186,6 +186,6 @@
     }
   },
   "DependsOn": "ConfigPermissionToCallLambda"
-}, 
+}
 }
 }

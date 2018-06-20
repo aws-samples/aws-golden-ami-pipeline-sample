@@ -511,7 +511,7 @@
 
                                     "Effect": "Allow",
                                     "Action": "sts:AssumeRole",
-                                   "Resource": { "Fn::Join": ["",["arn:aws:iam::*:role/",{"Ref":"roleName"}] ]},
+                                   "Resource": { "Fn::Join": ["",["arn:aws:iam::*:role/",{"Ref":"roleName"}] ]}
                                   },
                                  {
                                     "Effect": "Allow",
@@ -1904,7 +1904,7 @@
                         {
                            "Effect":"Allow",
                            "Action":["sts:AssumeRole"],
-                           "Resource": { "Fn::Join": ["",["arn:aws:iam::*:role/",{"Ref":"roleName"}] ]},
+                           "Resource": { "Fn::Join": ["",["arn:aws:iam::*:role/",{"Ref":"roleName"}] ]}
                         },
                         
                         {
@@ -2454,7 +2454,7 @@
                      "Sid": "StartContinuousAssessmentLambdaPolicyStmt2",
                      "Effect": "Allow",
                      "Action":[ 
-                     "ec2:DescribeImages", ],
+                     "ec2:DescribeImages" ],
                      "Resource": ["*"]
                      },  
                      {
@@ -2486,7 +2486,7 @@
                             "Resource": "*",
                             "Condition": {
                               "ForAllValues:StringEquals": {
-                                "aws:TagKeys": ["AMI-Type","ProductName","continuous-assessment-instance","ProductOSAndVersion","version",]
+                                "aws:TagKeys": ["AMI-Type","ProductName","continuous-assessment-instance","ProductOSAndVersion","version"]
                               }
                             }
                         },
@@ -2789,7 +2789,7 @@
                         "\n","        print('Terminating:'+key)",
                         "\n","        ec2.terminate_instances(InstanceIds=[key],DryRun=False)",
                         "\n","    sns.publish(TopicArn='", {"Ref":"ContinuousAssessmentResultsTopic"}, "',Message='['+', '.join(tagsList)+']')",
-                        "\n","    return jsonVal['run']",
+                        "\n","    return jsonVal['run']"
                      ]
                   ]
                }
