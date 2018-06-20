@@ -9,6 +9,8 @@ This work is based on architectures described in the following content.
 
 Here is a link to the Step-By-Step instructions guide for this work - [Golden-AMI-Pipeline-Guide V1.0.pdf](https://github.com/aws-samples/aws-golden-ami-pipeline-sample/blob/V-1.0/Golden-AMI-Pipeline-Guide%20V1.0.pdf)
 
+Note - The GitHUB repo is currently not available for external commits/pull requests.
+
 ## License
 
 This library is licensed under the Amazon Software License.
