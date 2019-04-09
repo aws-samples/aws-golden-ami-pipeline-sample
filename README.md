@@ -13,4 +13,4 @@ Note - The GitHUB repo is currently not available for external commits/pull requ
 
 ## License
 
-This library is licensed under the Amazon Software License.
+This library is licensed under the MIT-0.
