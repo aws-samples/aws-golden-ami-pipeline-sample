@@ -1,0 +1,22 @@
+- hosts: localhost
+  connection: local
+  gather_facts: False
+
+  tasks:
+  
+    - name: Provisioning EC2 instances
+      block:
+
+      - name: Provision instance(s)
+        ec2:
+          key_name: "{{ key_name }}"
+          group_id: "{{ sec_group }}"
+          image: "{{ image }}"
+          instance_type: "{{ instance_type }}"
+          region: "{{ region }}"
+          vpc_subnet_id: "{{ subnet_id }}"
+          assign_public_ip: yes
+          wait: true
+          count: 1
+          
+
