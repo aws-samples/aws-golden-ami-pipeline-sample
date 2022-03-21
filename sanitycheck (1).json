@@ -1,0 +1,50 @@
+{
+  "description": "cross-platform sample",
+  "schemaVersion": "2.2",
+  "mainSteps": [
+    {
+      "inputs": {
+        "runCommand": [
+          "$ErrorActionPreference = \"SilentlyContinue\"\n",
+          "Stop-Transcript | out-null\n",
+          "$ErrorActionPreference = \"Continue\"\n",
+          "Start-Transcript -Path C:\\Chef\\$env:COMPUTERNAME.log -Append\n",
+          "Initialize-AWSDefaultConfiguration -Region us-east-1\n",
+          "Copy-S3Object -BucketName ovid-main -Key 'bin/winsanity.ps1' -LocalFolder C:\\Temp -region us-east-1\n",
+          "powershell.exe -File C:\\Temp\\bin\\winsanity.ps1 > C:\\Temp\\$env:COMPUTERNAME.log\n",
+          "Stop-Transcript\n",
+          "Write-S3Object -BucketName ovid-devtest  -KeyPrefix log -Folder C:\\Temp  -SearchPattern *.log\n",
+          "$text = Get-Content C:\\Temp\\$env:COMPUTERNAME.log | Out-String\n",
+          "Publish-SNSMessage -Message $text -Region eu-west-1 -Subject $env:COMPUTERNAME -TopicArn arn:aws:sns:eu-west-1:171789863757:OCM-Server-Reports\n"
+        ]
+      },
+      "name": "PatchWindows",
+      "action": "aws:runPowerShellScript",
+      "precondition": {
+        "StringEquals": [
+          "platformType",
+          "Windows"
+        ]
+      }
+    },
+    {
+      "inputs": {
+        "runCommand": [
+          "aws s3 cp s3://jjtech-insanity/S3_insanitycheck.sh /tmp",
+          "chmod +x /tmp/S3_insanitycheck.sh",
+          "bash /tmp/S3_insanitycheck.sh &> /tmp/$(hostname).log",
+          "aws s3 cp /tmp/$(hostname).log s3://jjtech-insanity/log/$(hostname).log",
+          "aws sns publish --topic-arn \"arn:aws:sns:us-east-1:464599248654:InstanceStateNoifty\" --subject $(hostname) --message file:///tmp/$(hostname).log --region us-east-1"
+        ]
+      },
+      "name": "PatchLinux",
+      "action": "aws:runShellScript",
+      "precondition": {
+        "StringEquals": [
+          "platformType",
+          "Linux"
+        ]
+      }
+    }
+  ]
+}
